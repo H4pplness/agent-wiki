@@ -12,6 +12,9 @@ import { validateAgentName, validateRef } from '../utils/path.util';
 
 const chalk = new Chalk();
 
+const AGENT_COMMANDS = ['schema', 'view', 'create', 'delete', 'replace', 'list', 'log', 'sync'];
+const GLOBAL_COMMANDS = ['agents', 'sync-all', 'config'];
+
 @Injectable()
 export class WikiCliService {
   constructor(
@@ -25,6 +28,7 @@ export class WikiCliService {
   ) {}
 
   async run(argv: string[]): Promise<void> {
+    argv = this.normalizeArgv(argv);
     const program = new Command();
 
     program
@@ -281,6 +285,33 @@ export class WikiCliService {
   }
 
   // --- Helpers ---
+
+  /**
+   * Normalize argv so both syntax forms work:
+   *   agent-wiki <agent-name> <command> [args]   (design doc / SKILL.md format)
+   *   agent-wiki <command> <agent-name> [args]   (legacy format)
+   *
+   * If argv[2] is not a known command, it is treated as an agent name
+   * and swapped with argv[3] (the actual command).
+   */
+  private normalizeArgv(argv: string[]): string[] {
+    if (argv.length <= 2) return argv;
+
+    const firstArg = argv[2];
+
+    // Already a known command — nothing to do
+    if (AGENT_COMMANDS.includes(firstArg) || GLOBAL_COMMANDS.includes(firstArg)) {
+      return argv;
+    }
+
+    // firstArg looks like an agent name — swap with the next positional arg
+    if (argv.length >= 4) {
+      // agent-wiki my-agent schema ...rest → agent-wiki schema my-agent ...rest
+      return [argv[0], argv[1], argv[3], argv[2], ...argv.slice(4)];
+    }
+
+    return argv;
+  }
 
   private validateAgent(name: string): void {
     const result = validateAgentName(name);
