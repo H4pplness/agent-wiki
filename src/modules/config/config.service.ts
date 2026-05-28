@@ -14,7 +14,7 @@ const DEFAULT_CONFIG: AgentWikiConfig = {
   userToken: null,
   autoUpdateIndex: true,
   logRetentionDays: 90,
-  defaultWikiDirs: ['concepts', 'tasks', 'notes'],
+  defaultWikiDirs: [],
 };
 
 @Injectable()

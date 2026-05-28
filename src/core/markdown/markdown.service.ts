@@ -1,16 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { parseFrontmatter, stripFrontmatter } from '../../utils/frontmatter.util';
+
+const FOLDER_TO_TYPE: Record<string, string> = {
+  concepts: 'concept',
+  guides: 'guide',
+  entities: 'entity',
+  comparisons: 'comparison',
+  patterns: 'pattern',
+  tasks: 'task',
+  notes: 'note',
+};
 
 @Injectable()
 export class MarkdownService {
-  parse(content: string) {
-    return parseFrontmatter(content);
-  }
-
-  stripFrontmatter(content: string): string {
-    return stripFrontmatter(content);
-  }
-
   extractLinks(content: string): string[] {
     const linkRegex = /\[\[([^\]]+)\]\]/g;
     const links: string[] = [];
@@ -26,8 +27,13 @@ export class MarkdownService {
     return basename.replace(/\.md$/, '').replace(/-/g, ' ');
   }
 
-  inferCategory(ref: string): string {
+  inferType(ref: string): string {
     const parts = ref.split('/');
-    return parts[1] ?? 'general';
+    const folder = parts[1] ?? 'notes';
+    return FOLDER_TO_TYPE[folder] ?? 'note';
+  }
+
+  inferCategory(ref: string): string {
+    return this.inferType(ref);
   }
 }

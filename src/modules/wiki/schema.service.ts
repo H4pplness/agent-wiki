@@ -1,16 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { FilesystemService } from '../../core/filesystem/filesystem.service';
-import { generateFrontmatter } from '../../utils/frontmatter.util';
 
-const DEFAULT_SCHEMA_TEMPLATE = `---
-title: Schema
-category: system
-tags: [schema]
-created: {{created}}
-updated: {{updated}}
----
-
-# Schema — {{agentName}}
+const DEFAULT_SCHEMA_TEMPLATE = `# Schema — {{agentName}}
 
 > Khởi tạo: {{created}} | Cập nhật: {{updated}} | Tổng trang: 0
 
@@ -20,11 +11,9 @@ Mô tả ngắn về chuyên môn và phạm vi hoạt động của agent này.
 
 ## Cấu trúc Wiki
 
-| Danh mục | Địa chỉ tham chiếu | Số trang | Mô tả |
-|----------|-------------------|----------|-------|
-| Concepts | wiki/concepts/    | 0        | Khái niệm và định nghĩa |
-| Tasks    | wiki/tasks/       | 0        | Hàng đợi và trạng thái công việc |
-| Notes    | wiki/notes/       | 0        | Ghi chú và tài liệu tham khảo |
+Các danh mục được tạo động theo nhu cầu. Khi tạo trang mới trong \`wiki/<danh-mục>/\`, thư mục sẽ tự động được tạo.
+
+Dùng \`agent-wiki <name> list\` để xem danh sách trang hiện có.
 
 ## Trang quan trọng
 
@@ -32,9 +21,11 @@ _Chưa có trang nào._
 
 ## Quy ước
 
-- Mỗi trang bắt đầu bằng YAML frontmatter
+- Mỗi trang bắt đầu bằng YAML frontmatter với đầy đủ các trường: title, type, scope, tags, related, disambiguates-from, created, updated, confidence
 - Dùng \`[[ref]]\` để cross-link giữa các trang
 - Cập nhật index.md và log.md sau mỗi thay đổi
+- Đặt tên file theo kebab-case, có suffix phù hợp (-overview, -guide, -comparison, ...)
+- Tối đa 1 cấp thư mục lồng nhau trong wiki/
 
 ## Agents có thể đọc chéo
 

@@ -5,7 +5,8 @@ import { FilesystemService } from '../../core/filesystem/filesystem.service';
 import { IndexService, WikiPageEntry } from './index.service';
 import { WikiLoggerService } from '../../core/logger/wiki-logger.service';
 import { MarkdownService } from '../../core/markdown/markdown.service';
-import { generateFrontmatter, stripFrontmatter } from '../../utils/frontmatter.util';
+
+
 
 export class NotFoundException extends Error {
   constructor(message: string) {
@@ -30,13 +31,12 @@ export class WikiService {
     private readonly markdown: MarkdownService,
   ) {}
 
-  async viewPage(agentName: string, ref: string, raw = false): Promise<string> {
+  async viewPage(agentName: string, ref: string): Promise<string> {
     const filePath = this.fs.resolveWikiRef(agentName, ref);
     if (!(await this.fs.exists(filePath))) {
       throw new NotFoundException(`Trang wiki không tồn tại: ${ref}`);
     }
-    const content = await this.fs.readFile(filePath);
-    return raw ? content : stripFrontmatter(content);
+    return this.fs.readFile(filePath);
   }
 
   async createPage(agentName: string, ref: string, title?: string): Promise<void> {
@@ -45,11 +45,9 @@ export class WikiService {
       throw new ConflictException(`Trang wiki đã tồn tại: ${ref}`);
     }
     const t = title ?? this.markdown.inferTitle(ref);
-    const category = this.markdown.inferCategory(ref);
-    const template = generateFrontmatter(t, category);
 
     await this.fs.ensureDir(path.dirname(filePath));
-    await this.fs.writeFile(filePath, template);
+    await this.fs.writeFile(filePath, `# ${t}\n\n`);
     await this.index.addEntry(agentName, ref, t);
     await this.logger.log(agentName, 'create', `Tạo trang: ${ref}`);
   }

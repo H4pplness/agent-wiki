@@ -2,9 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { Command } from 'commander';
 import { Chalk } from 'chalk';
 import { SchemaService } from '../modules/wiki/schema.service';
-import { WikiService } from '../modules/wiki/wiki.service';
+import { WikiService, NotFoundException, ConflictException } from '../modules/wiki/wiki.service';
 import { ReplaceService } from '../modules/wiki/replace.service';
 import { SyncService } from '../modules/sync/sync.service';
+import { CloudSyncUnauthorizedError } from '../modules/sync/cloud-api.service';
 import { ConfigService } from '../modules/config/config.service';
 import { FilesystemService } from '../core/filesystem/filesystem.service';
 import { WikiLoggerService } from '../core/logger/wiki-logger.service';
@@ -51,16 +52,15 @@ export class WikiCliService {
     program
       .command('view <agent-name> <ref>')
       .description('Đọc nội dung một wiki page')
-      .option('--raw', 'Hiển thị kèm YAML frontmatter', false)
-      .action(async (agentName: string, ref: string, opts: { raw: boolean }) => {
+      .action(async (agentName: string, ref: string) => {
         this.validateAgent(agentName);
         this.validateRefStr(ref);
         await this.ensureAgent(agentName);
         try {
-          const content = await this.wikiService.viewPage(agentName, ref, opts.raw);
+          const content = await this.wikiService.viewPage(agentName, ref);
           console.log(content);
         } catch (err) {
-          this.exitErr(err, 1);
+          this.exitErr(err, err instanceof NotFoundException ? 1 : 3);
         }
       });
 
@@ -77,7 +77,7 @@ export class WikiCliService {
           await this.wikiService.createPage(agentName, ref, opts.title);
           console.log(chalk.green(`[OK] Đã tạo trang: ${ref}`));
         } catch (err) {
-          this.exitErr(err, 1);
+          this.exitErr(err, err instanceof ConflictException ? 1 : 3);
         }
       });
 
@@ -93,7 +93,7 @@ export class WikiCliService {
           await this.wikiService.deletePage(agentName, ref, opts.confirm);
           console.log(chalk.green(`[OK] Đã xóa trang: ${ref}`));
         } catch (err) {
-          this.exitErr(err, 1);
+          this.exitErr(err, err instanceof NotFoundException ? 1 : 3);
         }
       });
 
@@ -112,21 +112,25 @@ export class WikiCliService {
       ) => {
         this.validateAgent(agentName);
         await this.ensureAgent(agentName);
-        const result = await this.replaceService.replace(agentName, target, oldStr, newStr, {
-          replaceAll: opts.all,
-          dryRun: opts.dryRun,
-        });
+        try {
+          const result = await this.replaceService.replace(agentName, target, oldStr, newStr, {
+            replaceAll: opts.all,
+            dryRun: opts.dryRun,
+          });
 
-        if (!result.success) {
-          console.error(chalk.red(`Error: ${result.message}`));
-          process.exit(1);
-        }
+          if (!result.success) {
+            console.error(chalk.red(`Error: ${result.message}`));
+            process.exit(1);
+          }
 
-        if (result.dryRun && result.diff) {
-          console.log(chalk.cyan('--- Dry run diff ---'));
-          console.log(result.diff);
-        } else {
-          console.log(chalk.green(`[OK] Đã thay thế ${result.count} lần.`));
+          if (result.dryRun && result.diff) {
+            console.log(chalk.cyan('--- Dry run diff ---'));
+            console.log(result.diff);
+          } else {
+            console.log(chalk.green(`[OK] Đã thay thế ${result.count} lần.`));
+          }
+        } catch (err) {
+          this.exitErr(err, 3);
         }
       });
 
@@ -184,7 +188,7 @@ export class WikiCliService {
           const result = await this.syncService.syncAgent(agentName);
           console.log(chalk.green(`[OK] ${result.message}`));
         } catch (err) {
-          this.exitErr(err, 4);
+          this.exitErr(err, err instanceof CloudSyncUnauthorizedError ? 4 : 3);
         }
       });
 
@@ -243,7 +247,7 @@ export class WikiCliService {
             console.log(line);
           }
         } catch (err) {
-          this.exitErr(err, 4);
+          this.exitErr(err, err instanceof CloudSyncUnauthorizedError ? 4 : 3);
         }
       });
 
@@ -345,11 +349,9 @@ export class WikiCliService {
       `# Index — ${agentName}\n\n`,
     );
     await this.logger.log(agentName, 'init', `Wiki khởi tạo cho agent: ${agentName}`);
-    for (const dir of ['concepts', 'tasks', 'notes']) {
-      await this.fs.ensureDir(
-        this.fs.resolveWikiRef(agentName, `wiki/${dir}`),
-      );
-    }
+    await this.fs.ensureDir(
+      this.fs.resolveWikiRef(agentName, 'wiki'),
+    );
   }
 
   private exitErr(err: unknown, code: number): never {
