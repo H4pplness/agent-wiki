@@ -1,5 +1,5 @@
 {
-  "name": "@h4pplness/agent-wiki",
+  "name": "@yummii/agent-wiki",
   "version": "3.0.0",
   "description": "CLI knowledge base platform for AI agents, organized by domain",
   "main": "src/index.js",
