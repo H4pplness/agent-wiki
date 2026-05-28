@@ -1,3 +1,8 @@
+---
+name: agent-wiki
+description: Use the agent-wiki CLI to create and maintain local Markdown knowledge bases for AI agents, including domain schemas, wiki pages, page updates, and navigation conventions.
+---
+
 # agent-wiki SKILL
 
 ## What this skill covers
