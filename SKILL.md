@@ -1,289 +1,198 @@
----
-name: agent-wiki
-description: >
-  Hướng dẫn sử dụng agent-wiki CLI và xây dựng wiki đúng chuẩn. Dùng skill này
-  bất cứ khi nào agent cần: khởi động và đọc schema, đọc/tạo/sửa/xóa wiki page,
-  cập nhật index.md, đặt tên file, phân vân tạo mới hay chỉnh sửa trang cũ, hoặc
-  đọc wiki của agent khác để phối hợp. Đây là tài liệu vận hành chính của toàn bộ
-  hệ thống agent-wiki — đọc trước khi thực hiện bất kỳ thao tác nào với wiki.
----
+# agent-wiki SKILL
 
-# Agent Wiki — CLI Guide & Wiki Building Standards
+## What this skill covers
+
+How to use the `agent-wiki` CLI, and how to make good decisions about when and how to create schemas and wiki pages.
 
 ---
 
-## Bắt đầu — luôn làm điều này trước
+## Part 1 — CLI Usage
+
+### Command reference
 
 ```bash
-# 1. Khởi tạo wiki (nếu chưa có) và xem layout hiện tại
-agent-wiki <your-name> schema
+# Initialize a new domain
+agent-wiki <domain> init --desc "<description>"
 
-# 2. Xem danh sách pages đang có
-agent-wiki <your-name> list
+# Read schema (always do this first when working in a domain)
+agent-wiki <domain> schema
+
+# Overwrite the entire schema
+agent-wiki <domain> schema edit "<content>"
+
+# View a wiki page
+agent-wiki <domain> view <path>
+
+# Create or overwrite a wiki page
+agent-wiki <domain> write <path> "<content>"
+
+# Replace a string in any file (wiki pages or schema.md)
+agent-wiki <domain> replace <path> "<old string>" "<new string>"
+
+# List files in the wiki
+agent-wiki <domain> list
+agent-wiki <domain> list wiki/some-folder/
+
+# List all domains
+agent-wiki domains
+
+# Delete a domain
+agent-wiki <domain> delete --confirm
 ```
 
-Đặt tên agent theo vai trò, tối đa 64 ký tự, chỉ dùng `[a-z0-9\-_]`:
-`code-reviewer`, `orchestrator`, `data-analyst`, `debugger`, v.v.
+### Typical workflow when starting work in a domain
 
----
+Always follow this order before reading or writing anything:
 
-## CLI Commands
-
-### Đọc
-
-```bash
-# Xem schema (bản đồ điều hướng toàn bộ wiki)
-agent-wiki <name> schema
-
-# Xem nội dung một page
-agent-wiki <name> view wiki/concepts/circuit-breaker.md
-
-# Liệt kê toàn bộ pages
-agent-wiki <name> list
-
-# Liệt kê pages theo prefix
-agent-wiki <name> list wiki/tasks/
-
-# Output dạng JSON (tiện cho script)
-agent-wiki <name> list wiki/reports/ --json
+```
+1. agent-wiki <domain> schema         → understand structure and conventions
+2. agent-wiki <domain> view wiki/index.md  → see what pages exist
+3. agent-wiki <domain> view <page>    → read specific pages as needed
 ```
 
-### Ghi
+Never skip step 1. The schema tells you how the wiki is organized and what conventions to follow. Working without reading the schema first leads to inconsistent structure.
+
+### Writing vs. replacing
+
+Use `write` when creating a new page or rewriting a page from scratch.
+
+Use `replace` when updating a specific part of an existing page. Prefer `replace` over `write` for edits — it is safer because it only changes the targeted string and leaves everything else intact.
 
 ```bash
-# Tạo page mới — LỖI nếu page đã tồn tại
-agent-wiki <name> create wiki/concepts/circuit-breaker.md --title "Circuit Breaker Pattern"
+# Good: surgical update
+agent-wiki myapp replace wiki/auth.md "status: draft" "status: stable"
 
-# Chỉnh sửa nội dung (exact string match)
-agent-wiki <name> replace wiki/tasks/queue.md \
-  "- [ ] Review auth module" "- [x] Review auth module"
-
-# Thay tất cả lần xuất hiện
-agent-wiki <name> replace wiki/metrics/kpi.md "Q1" "Q2" --all
-
-# Xem trước diff, không ghi file
-agent-wiki <name> replace wiki/rules/policy.md "cũ" "mới" --dry-run
-
-# Chỉnh sửa schema
-agent-wiki <name> replace schema "Tổng trang: 10" "Tổng trang: 11"
+# Only use write when creating new or fully rewriting
+agent-wiki myapp write wiki/auth.md "<full new content>"
 ```
 
-### Xóa
+### Updating index.md
+
+After creating a page that is significant enough to be discovered later, add a reference to `wiki/index.md`:
 
 ```bash
-# Xóa page (có prompt xác nhận)
-agent-wiki <name> delete wiki/notes/obsolete.md
-
-# Bỏ qua prompt — dùng khi gọi từ script
-agent-wiki <name> delete wiki/notes/obsolete.md --confirm
-```
-
-### Lịch sử & Global
-
-```bash
-# Xem lịch sử hoạt động
-agent-wiki <name> log
-
-# Xem N dòng cuối
-agent-wiki <name> log --tail 20
-
-# Liệt kê tất cả agents đang có trên máy
-agent-wiki agents
-
-# Đồng bộ lên cloud
-agent-wiki <name> sync
-
-# Đồng bộ tất cả agents
-agent-wiki sync-all
-```
-
-### Cấu hình
-
-```bash
-# Xem toàn bộ cấu hình
-agent-wiki config list
-
-# Xem một giá trị
-agent-wiki config get cloudEndpoint
-
-# Thiết lập cấu hình
-agent-wiki config set cloudEndpoint https://api.example.com
-agent-wiki config set userToken your-token-here
-agent-wiki config set autoUpdateIndex true
-agent-wiki config set logRetentionDays 90
-```
-
-Các key có sẵn:
-
-| Key | Mặc định | Mô tả |
-|-----|----------|-------|
-| `cloudEndpoint` | `null` | URL cloud server để đồng bộ |
-| `userToken` | `null` | Token xác thực cho cloud |
-| `autoUpdateIndex` | `true` | Tự động cập nhật index.md |
-| `logRetentionDays` | `90` | Số ngày giữ log |
-| `defaultWikiDirs` | `["concepts","tasks","notes"]` | Thư mục mặc định khi init |
-
-### Đọc wiki của agent khác (cross-read)
-
-```bash
-# Đọc schema của agent khác
-agent-wiki orchestrator schema
-
-# Đọc một page cụ thể của agent khác
-agent-wiki data-analyst view wiki/reports/q2-findings.md
+agent-wiki myapp replace wiki/index.md "---" "- [Auth Service](wiki/auth.md) — authentication and session management
+---"
 ```
 
 ---
 
-## Quy tắc quan trọng khi dùng CLI
+## Part 2 — Design Guidelines
 
-| Quy tắc | Lý do |
-|---------|-------|
-| **Đọc trước khi ghi** — `list` hoặc `view` trước | Tránh tạo trùng hoặc ghi đè nhầm |
-| **`old-string` trong `replace` phải chính xác từng ký tự** | Sai một dấu cách hay xuống dòng → exit code 1 |
-| **`create` cho page mới, `replace` cho page cũ** | `create` báo lỗi nếu file đã tồn tại |
-| **Chỉ ghi vào wiki của mình** | Cross-read thoải mái; cross-write không được trừ khi có lý do rõ ràng |
-| **Cập nhật schema sau khi thêm pages** | Schema là bản đồ điều hướng — để sai thì agent sau bị lạc |
+### When to create a schema (domain)
+
+**A schema must represent something large and long-lived** — a project, a system, a product, or a broad knowledge domain. It is a knowledge base that will accumulate pages over time and needs structural conventions to stay navigable.
+
+**Create a schema when:**
+- A user explicitly asks for it
+- The subject is a whole project, product, codebase, or domain (e.g. "our e-commerce platform", "machine learning techniques we use", "internal ops processes")
+- Knowledge about this subject will grow over multiple sessions
+
+**Do NOT create a schema for:**
+- A single feature, task, or ticket
+- A one-off document, article, or blog post
+- Anything a user did not ask to be persisted as a domain
+
+If unsure, ask the user whether they want a persistent domain or just a one-time answer.
 
 ---
 
-## Naming Conventions
+### How to write a good domain description
 
-### Quy tắc đặt tên file
+The domain description appears every time `schema` is called. It must orient the agent immediately — before reading any wiki page.
+
+**Requirements:**
+- One to three sentences maximum
+- State what the domain is about, what kind of knowledge is stored, and the scope
+- Specific enough that it could not be confused with another domain
+
+**Good:**
+```
+E-commerce XYZ project. Stores architecture decisions, API contracts, business
+rules, and technical decisions agreed upon by the team.
+```
 
 ```
-Format:    kebab-case, chữ thường, không dấu, tiếng Anh
-Độ dài:    2–5 từ, tối đa 50 ký tự (không tính .md)
-Extension: luôn là .md
+Applied machine learning knowledge base. Focuses on techniques validated in
+production, not academic theory.
 ```
 
-Không hợp lệ — tuyệt đối không dùng:
-- Tên 1 từ chung chung: `auth.md`, `data.md`, `service.md`
-- Từ khoá quá rộng đứng một mình: `overview.md`, `guide.md`, `notes.md`
-
-**Suffix chuẩn theo loại trang:**
-
-| Suffix | Loại trang | Trả lời câu hỏi | Ví dụ |
-|--------|-----------|-----------------|-------|
-| *(không có)* | Concept thuần | "X là gì?" | `attention-mechanism.md` |
-| `-overview` | Entry point tổng quan | "X bao gồm những gì?" | `authentication-overview.md` |
-| `-guide` | How-to có steps | "Làm X như thế nào?" | `jwt-nestjs-guide.md` |
-| `-patterns` | Tập hợp patterns | "Các cách phổ biến để làm X?" | `error-handling-patterns.md` |
-| `-comparison` | So sánh 2+ thứ | "X vs Y khác nhau?" | `rag-vs-finetuning-comparison.md` |
-| `-reference` | Tra cứu nhanh | "X có những options nào?" | `http-status-codes-reference.md` |
-| `-cookbook` | Tập recipes | "Ví dụ thực tế về X?" | `nestjs-guards-cookbook.md` |
-
-Quy tắc chống nhập nhằng:
-- Cùng topic vừa là concept vừa là guide → **bắt buộc** dùng suffix
-- Hai trang tên gần giống → một trong hai phải thêm suffix rõ hơn hoặc merge
-- Khi phân vân: hỏi "trang này trả lời câu hỏi gì?" rồi chọn suffix tương ứng
-
-### Folder taxonomy
-
-Danh mục được tạo động — không có cấu trúc cố định. Khi `create` một trang trong `wiki/<danh-mục>/`, thư mục sẽ tự động xuất hiện.
-
-Tối đa 1 cấp lồng nhau. Không tạo thư mục con của thư mục con.
-
-**Danh mục khuyến nghị:**
-
-| Danh mục | Dùng khi | Ví dụ |
-|----------|---------|-------|
-| `concepts/` | Định nghĩa, lý thuyết ("X là gì?") | `wiki/concepts/circuit-breaker.md` |
-| `guides/` | Hướng dẫn có steps ("Làm X như thế nào?") | `wiki/guides/jwt-nestjs-guide.md` |
-| `entities/` | Thư viện, framework, công cụ cụ thể | `wiki/entities/prisma.md` |
-| `comparisons/` | So sánh ("X vs Y") | `wiki/comparisons/rag-vs-finetuning.md` |
-| `patterns/` | Pattern tái xuất hiện trong domain | `wiki/patterns/error-handling-patterns.md` |
-| `tasks/` | Công việc đang theo dõi | `wiki/tasks/migrate-auth.md` |
-| `notes/` | Ghi chú tạm thời, chưa categorize | `wiki/notes/meeting-2024-01-15.md` |
-
-Câu hỏi chọn thư mục — dừng ở câu đầu tiên trả lời "có":
-
+**Bad:**
 ```
-Đây là định nghĩa/lý thuyết?        → concepts/
-Đây là hướng dẫn có thể làm theo?   → guides/
-Đây là một thứ cụ thể có tên riêng? → entities/
-Đây là "A vs B"?                    → comparisons/
-Đây là pattern tái xuất hiện?       → patterns/
-Đây là công việc cần track?         → tasks/
-Chưa rõ?                            → notes/
+Notes about the project.         ← too vague, could be anything
+Everything about our backend.    ← "everything" is not a scope
 ```
 
 ---
 
-## Disambiguation block
+### When to create a wiki page
 
-Thêm block này ở đầu trang khi trang dễ nhầm với trang khác:
+Create a new page when a topic is **independent enough to stand on its own** and will likely be referenced again in future sessions.
+
+Do not create a page for every small piece of information. Prefer adding content to an existing relevant page when the topic is a sub-topic of something already documented.
+
+Ask: "If I needed this information in a future session, would I know which page to look in?" If the answer is no, that is a signal the topic needs its own page with a clear description.
+
+---
+
+### How to write a good page description
+
+Every wiki page **must** begin with a blockquote description immediately after the H1 title. This is not optional.
 
 ```markdown
-> 📍 **Trang này về:** [mô tả ngắn gọn]
-> 🔀 **Bạn có thể đang tìm:**
-> - [Mô tả trang khác] → [[wiki/path/other-page.md]]
-```
+# Page Title
 
-Bắt buộc khi:
-- Tên file gần giống trang khác (`caching.md` và `redis-cache.md`)
-- Cùng topic nhưng khác loại (concept vs guide cùng chủ đề)
-- Có quan hệ parent-child với trang khác
+> <description here>
 
 ---
+```
 
-## Quy tắc index.md
+The description is the first thing an agent reads when scanning pages. It must answer:
+- What is this page about?
+- What kind of information is stored here?
+- When should someone read this page?
 
-Dùng grouped layout — nhóm theo thư mục, full path trong link:
+**Requirements:**
+- Two to four sentences maximum
+- Must be specific enough that it cannot be confused with any other page in the same domain
+- Must not overlap in scope with an existing page — if it does, update that page instead of creating a new one
+
+**Before writing a description, check existing pages.** Run `agent-wiki <domain> list`, skim descriptions of related pages via `view`, and confirm the new page covers something genuinely distinct.
+
+**Good:**
+```markdown
+# Auth Service — API Contracts
+
+> Defines the request/response schema, error codes, and versioning policy for
+> all endpoints in the auth service. Read this when implementing or debugging
+> login, logout, token refresh, or session validation flows.
+```
+
+**Bad:**
+```markdown
+# Auth
+
+> Information about auth.
+```
 
 ```markdown
-### concepts/
-| Trang | Trả lời câu hỏi |
-|-------|-----------------|
-| [[wiki/concepts/jwt-overview.md]] | JWT là gì, tại sao dùng |
-| [[wiki/concepts/solid-principles.md]] | SOLID là gì, ví dụ từng nguyên tắc |
+# Auth Notes
 
-### guides/
-| Trang | Trả lời câu hỏi |
-|-------|-----------------|
-| [[wiki/guides/jwt-nestjs-guide.md]] | Cài đặt JWT trong NestJS step-by-step |
-| [[wiki/guides/nestjs-guard-guide.md]] | Cách viết Guard trong NestJS |
+> Some notes I collected about the authentication system.
 ```
 
-- Group header thay thế cột `type` — dễ scan theo chủ đề
-- Full path → dùng thẳng trong lệnh `view` không cần reconstruct
-- Cột "Trả lời câu hỏi" bắt buộc — chọn đúng trang mà không cần mở file
+A page whose description could describe another existing page is a sign the content should be merged, not created separately.
 
 ---
 
-## Tạo mới vs chỉnh sửa trang cũ
+### Schema content guidelines
 
-**Chỉnh sửa trang cũ khi:**
-- Thông tin cũ lỗi thời hoặc sai
-- Bổ sung chi tiết vào concept đã có
-- Hai nguồn mô tả cùng một khái niệm → merge
-- Nội dung mới overlap >70% với trang cũ
+The schema is read by the agent every time it starts working in a domain. It should contain:
 
-**Tạo trang mới khi:**
-- Góc độ rõ ràng khác nhau (concept vs guide cùng chủ đề)
-- Scope không overlap nhiều với trang nào đang có
-- Thực thể độc lập, chỉ liên quan chứ không phải cùng một thứ
+- **Wiki structure**: what folders exist, what each folder is for
+- **Naming conventions**: how files and folders should be named
+- **Page format**: the mandatory purpose block, any other structural requirements
+- **Update guidelines**: when to create a new page vs. update an existing one, when to update `index.md`
+- **Cross-reference conventions**: how pages should link to each other if applicable
 
-**Checklist trước khi tạo trang mới:**
-```
-□ Đã đọc index.md, không có trang nào cover >70% topic này?
-□ Tên file: kebab-case, 2-5 từ, suffix phù hợp?
-□ Thư mục: đúng folder taxonomy?
-□ Đã thêm entry vào index.md TRƯỚC khi tạo file?
-□ Có disambiguation block nếu tên gần giống trang khác?
-□ Đã cross-link từ ít nhất 1 trang liên quan?
-```
-
----
-
-## Exit codes
-
-| Code | Ý nghĩa |
-|------|---------|
-| `0` | Thành công |
-| `1` | Lỗi logic (file không tồn tại, old-string không tìm thấy) |
-| `2` | Lỗi validation (agent-name không hợp lệ, path traversal) |
-| `3` | Lỗi hệ thống (không đọc/ghi được file) |
-| `4` | Lỗi network (sync thất bại) |
-
-Agent gọi CLI qua subprocess nên cần bắt lỗi theo exit code, không parse text.
+Keep the schema concise. It should be scannable in seconds. If the schema is too long, the agent wastes tokens reading it on every session start.
