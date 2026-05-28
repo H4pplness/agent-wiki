@@ -3,7 +3,7 @@ const { print, printErr } = require('./output/formatter');
 
 function run(argv) {
   const args = minimist(argv, {
-    string: ['desc'],
+    string: ['desc', 'file'],
     boolean: ['confirm', 'help'],
     alias: { d: 'desc', h: 'help' },
   });
@@ -36,8 +36,8 @@ function run(argv) {
       break;
 
     case 'schema': {
-      const subCmd = positional[2];
-      const content = positional.slice(3).join(' ');
+      const subCmd = argv[2];
+      const content = argv.slice(3).join(' ');
       require('./commands/schema').run(domain, subCmd, [content]);
       break;
     }
@@ -47,12 +47,23 @@ function run(argv) {
       break;
 
     case 'write':
-      require('./commands/write').run(domain, positional[2], positional.slice(3).join(' '));
+      require('./commands/write').run(domain, argv[2], argv.slice(3).join(' '));
       break;
 
-    case 'replace':
+    case 'replace': {
       require('./commands/replace').run(domain, positional[2], positional[3], positional[4]);
       break;
+    }
+
+    case 'patch': {
+      require('./commands/patch').run(
+        domain,
+        argv[2],
+        argv.length > 3 ? argv.slice(3).join(' ') : undefined,
+        args
+      );
+      break;
+    }
 
     case 'list':
       require('./commands/list').run(domain, positional[2]);
@@ -78,7 +89,7 @@ function printHelp() {
   print('  agent-wiki <domain> schema edit "<content>"');
   print('  agent-wiki <domain> view <path>');
   print('  agent-wiki <domain> write <path> "<content>"');
-  print('  agent-wiki <domain> replace <path> "<old>" "<new>"');
+  print('  agent-wiki <domain> patch <path> --file <patch-file>');
   print('  agent-wiki <domain> list [path]');
   print('  agent-wiki <domain> delete --confirm');
   print('  agent-wiki domains');

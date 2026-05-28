@@ -11,7 +11,7 @@ How to use the `agent-wiki` CLI, and how to make good decisions about when and h
 
 ---
 
-## Part 1 — CLI Usage
+## Part 1 - CLI Usage
 
 ### Install
 
@@ -37,8 +37,8 @@ agent-wiki <domain> view <path>
 # Create or overwrite a wiki page
 agent-wiki <domain> write <path> "<content>"
 
-# Replace a string in any file (wiki pages or schema.md)
-agent-wiki <domain> replace <path> "<old string>" "<new string>"
+# Patch a wiki page or schema.md
+agent-wiki <domain> patch <path> --file <patch-file>
 
 # List files in the wiki
 agent-wiki <domain> list
@@ -56,22 +56,27 @@ agent-wiki <domain> delete --confirm
 Always follow this order before reading or writing anything:
 
 ```
-1. agent-wiki <domain> schema         → understand structure and conventions
-2. agent-wiki <domain> view wiki/index.md  → see what pages exist
-3. agent-wiki <domain> view <page>    → read specific pages as needed
+1. agent-wiki <domain> schema              -> understand structure and conventions
+2. agent-wiki <domain> view wiki/index.md  -> see what pages exist
+3. agent-wiki <domain> view <page>         -> read specific pages as needed
 ```
 
 Never skip step 1. The schema tells you how the wiki is organized and what conventions to follow. Working without reading the schema first leads to inconsistent structure.
 
-### Writing vs. replacing
+### Writing vs. patching
 
 Use `write` when creating a new page or rewriting a page from scratch.
 
-Use `replace` when updating a specific part of an existing page. Prefer `replace` over `write` for edits — it is safer because it only changes the targeted string and leaves everything else intact.
+Use `patch` when updating a specific part of an existing page. Prefer `patch` over `write` for edits because it only changes the targeted lines and leaves everything else intact.
 
 ```bash
-# Good: surgical update
-agent-wiki myapp replace wiki/auth.md "status: draft" "status: stable"
+# Good: surgical update with change.diff
+agent-wiki myapp patch wiki/auth.md --file change.diff
+
+# Example change.diff
+@@
+-status: draft
++status: stable
 
 # Only use write when creating new or fully rewriting
 agent-wiki myapp write wiki/auth.md "<full new content>"
@@ -82,17 +87,24 @@ agent-wiki myapp write wiki/auth.md "<full new content>"
 After creating a page that is significant enough to be discovered later, add a reference to `wiki/index.md`:
 
 ```bash
-agent-wiki myapp replace wiki/index.md "---" "- [Auth Service](wiki/auth.md) — authentication and session management
----"
+agent-wiki myapp patch wiki/index.md --file change.diff
+```
+
+Example `change.diff`:
+
+```diff
+@@
+ ---
++- [Auth Service](wiki/auth.md) - authentication and session management
 ```
 
 ---
 
-## Part 2 — Design Guidelines
+## Part 2 - Design Guidelines
 
 ### When to create a schema (domain)
 
-**A schema must represent something large and long-lived** — a project, a system, a product, or a broad knowledge domain. It is a knowledge base that will accumulate pages over time and needs structural conventions to stay navigable.
+**A schema must represent something large and long-lived**: a project, a system, a product, or a broad knowledge domain. It is a knowledge base that will accumulate pages over time and needs structural conventions to stay navigable.
 
 **Create a schema when:**
 - A user explicitly asks for it
@@ -110,7 +122,7 @@ If unsure, ask the user whether they want a persistent domain or just a one-time
 
 ### How to write a good domain description
 
-The domain description appears every time `schema` is called. It must orient the agent immediately — before reading any wiki page.
+The domain description appears every time `schema` is called. It must orient the agent immediately before reading any wiki page.
 
 **Requirements:**
 - One to three sentences maximum
@@ -118,6 +130,7 @@ The domain description appears every time `schema` is called. It must orient the
 - Specific enough that it could not be confused with another domain
 
 **Good:**
+
 ```
 E-commerce XYZ project. Stores architecture decisions, API contracts, business
 rules, and technical decisions agreed upon by the team.
@@ -129,9 +142,10 @@ production, not academic theory.
 ```
 
 **Bad:**
+
 ```
-Notes about the project.         ← too vague, could be anything
-Everything about our backend.    ← "everything" is not a scope
+Notes about the project.         <- too vague, could be anything
+Everything about our backend.    <- "everything" is not a scope
 ```
 
 ---
@@ -166,13 +180,14 @@ The description is the first thing an agent reads when scanning pages. It must a
 **Requirements:**
 - Two to four sentences maximum
 - Must be specific enough that it cannot be confused with any other page in the same domain
-- Must not overlap in scope with an existing page — if it does, update that page instead of creating a new one
+- Must not overlap in scope with an existing page; if it does, update that page instead of creating a new one
 
 **Before writing a description, check existing pages.** Run `agent-wiki <domain> list`, skim descriptions of related pages via `view`, and confirm the new page covers something genuinely distinct.
 
 **Good:**
+
 ```markdown
-# Auth Service — API Contracts
+# Auth Service - API Contracts
 
 > Defines the request/response schema, error codes, and versioning policy for
 > all endpoints in the auth service. Read this when implementing or debugging
@@ -180,6 +195,7 @@ The description is the first thing an agent reads when scanning pages. It must a
 ```
 
 **Bad:**
+
 ```markdown
 # Auth
 

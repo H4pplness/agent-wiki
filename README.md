@@ -31,8 +31,13 @@ Content here."
 # View a page
 agent-wiki my-project view wiki/overview.md
 
-# Update part of a page
-agent-wiki my-project replace wiki/overview.md "Content here." "Three services: auth, product, order."
+# Update part of a page with a patch
+agent-wiki my-project patch wiki/overview.md --file ./change.diff
+
+# Example change.diff:
+# @@
+# -Content here.
+# +Three services: auth, product, order.
 
 # List all pages
 agent-wiki my-project list
@@ -50,10 +55,22 @@ agent-wiki domains
 | `agent-wiki <domain> schema edit "<content>"` | Overwrite the schema |
 | `agent-wiki <domain> view <path>` | View a file |
 | `agent-wiki <domain> write <path> "<content>"` | Create or overwrite a file |
-| `agent-wiki <domain> replace <path> "<old>" "<new>"` | Replace a string in any file |
+| `agent-wiki <domain> patch <path> --file <patch-file>` | Apply a unified-diff style patch to a file |
 | `agent-wiki <domain> list [path]` | List wiki files |
 | `agent-wiki <domain> delete --confirm` | Delete a domain |
 | `agent-wiki domains` | List all domains |
+
+## Patch format
+
+`patch` applies simple unified-diff style hunks. Use a space for context lines, `-` for removed lines, and `+` for added lines.
+
+```diff
+@@
+ - [agent-wiki](wiki/projects/agent-wiki.md) - CLI knowledge base
++- [confluence-cli](wiki/projects/confluence-cli.md) - CLI tool
+```
+
+In the example above, the first line starts with a space before the Markdown `-`. That keeps the existing list item as context and inserts the new list item after it.
 
 ## Data location
 
