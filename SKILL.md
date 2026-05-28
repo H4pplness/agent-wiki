@@ -13,6 +13,12 @@ How to use the `agent-wiki` CLI, and how to make good decisions about when and h
 
 ## Part 1 — CLI Usage
 
+### Install
+
+```bash
+npm install -g @h4pplness/agent-wiki
+```
+
 ### Command reference
 
 ```bash

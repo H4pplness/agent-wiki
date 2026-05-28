@@ -1,6 +1,6 @@
 {
-  "name": "@yummii/agent-wiki",
-  "version": "3.0.1",
+  "name": "@h4pplness/agent-wiki",
+  "version": "1.0.1",
   "description": "CLI knowledge base platform for AI agents, organized by domain",
   "main": "src/index.js",
   "bin": {

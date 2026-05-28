@@ -7,7 +7,7 @@ No server. No authentication. Just Markdown files and a lightweight CLI.
 ## Install
 
 ```bash
-npm install -g agent-wiki
+npm install -g @h4pplness/agent-wiki
 ```
 
 ## Quick start
