@@ -11,7 +11,7 @@ How to use the `agent-wiki` CLI, and how to make good decisions about when and h
 
 ---
 
-## Part 1 - CLI Usage
+## Part 1 — CLI Usage
 
 ### Install
 
@@ -37,8 +37,15 @@ agent-wiki <domain> view <path>
 # Create or overwrite a wiki page
 agent-wiki <domain> write <path> "<content>"
 
-# Patch a wiki page or schema.md
-agent-wiki <domain> patch <path> --file <patch-file>
+# Apply a patch to create, update, or delete files in a domain
+agent-wiki <domain> apply_patch << 'EOF'
+*** Begin Patch
+...
+*** End Patch
+EOF
+
+# Or use a patch file
+agent-wiki <domain> apply_patch --file <patch-file>
 
 # List files in the wiki
 agent-wiki <domain> list
@@ -56,55 +63,111 @@ agent-wiki <domain> delete --confirm
 Always follow this order before reading or writing anything:
 
 ```
-1. agent-wiki <domain> schema              -> understand structure and conventions
-2. agent-wiki <domain> view wiki/index.md  -> see what pages exist
-3. agent-wiki <domain> view <page>         -> read specific pages as needed
+1. agent-wiki <domain> schema              → understand structure and conventions
+2. agent-wiki <domain> view wiki/index.md  → see what pages exist
+3. agent-wiki <domain> view <page>         → read specific pages as needed
 ```
 
 Never skip step 1. The schema tells you how the wiki is organized and what conventions to follow. Working without reading the schema first leads to inconsistent structure.
 
-### Writing vs. patching
+### Writing vs. applying patches
 
 Use `write` when creating a new page or rewriting a page from scratch.
 
-Use `patch` when updating a specific part of an existing page. Prefer `patch` over `write` for edits because it only changes the targeted lines and leaves everything else intact.
+Use `apply_patch` when updating a specific part of an existing page. Prefer `apply_patch` over `write` for edits — it is safer because it only changes the targeted lines and leaves everything else intact. `apply_patch` can also create and delete files.
 
 ```bash
-# Good: surgical update with change.diff
-agent-wiki myapp patch wiki/auth.md --file change.diff
-
-# Example change.diff
+# Good: surgical update via heredoc
+agent-wiki myapp apply_patch << 'EOF'
+*** Begin Patch
+*** Update File: wiki/auth.md
 @@
 -status: draft
 +status: stable
+*** End Patch
+EOF
 
 # Only use write when creating new or fully rewriting
 agent-wiki myapp write wiki/auth.md "<full new content>"
 ```
+
+### Heredoc (EOF) usage guide
+
+`apply_patch` reads patch content via a **heredoc with a quoted delimiter** (`<< 'EOF'`). The single quotes around `EOF` are **mandatory** — without them, the shell interprets special characters inside the content and causes errors.
+
+**How it works:** When you write `<< 'EOF'`, the shell passes everything up to the next `EOF` line as stdin **without interpreting any characters**. This means:
+
+| Character | Unquoted (`<< EOF`) | Quoted (`<< 'EOF'`) |
+|-----------|---------------------|----------------------|
+| `$var`, `${var}` | Shell expands variable | Passed literally |
+| `` `cmd` `` | Shell executes command | Passed literally |
+| `"` | Affects quote parsing | Passed literally |
+| `'` | Breaks single-quote strings | Passed literally |
+| `\` | Escape character | Passed literally |
+| `*`, `***` | Glob expansion | Passed literally |
+
+**Always use `<< 'EOF'` (quoted), never `<< EOF` (unquoted).**
+
+#### Example with special characters — fully safe:
+
+```bash
+agent-wiki myapp apply_patch << 'EOF'
+*** Begin Patch
+*** Update File: wiki/notes.md
+@@
+-Price: $100                    # $ not expanded
+-Command: `npm install`         # backtick not executed
+-It's done                      # ' inside is safe
+-Path: C:\Users\team            # \ not interpreted
++Price: $150
++Command: `npm install --save`
++It's deployed
++Path: C:\Users\ops
+*** End Patch
+EOF
+```
+
+#### Choosing a delimiter:
+
+You can use any word as the delimiter, as long as it does not appear inside the patch content:
+
+```bash
+agent-wiki myapp apply_patch << 'ENDOFPATCH'
+...patch content...
+ENDOFPATCH
+```
+
+#### Three ways to pass a patch (priority order):
+
+| Method | Syntax | When to use |
+|--------|--------|-------------|
+| **Heredoc** | `apply_patch << 'EOF' ... EOF` | Primary method — safest, all content literal |
+| **File** | `apply_patch --file patch.txt` | Patch saved to a file beforehand |
+| **Pipe** | `echo "..." \| apply_patch` | Scripting / automation |
 
 ### Updating index.md
 
 After creating a page that is significant enough to be discovered later, add a reference to `wiki/index.md`:
 
 ```bash
-agent-wiki myapp patch wiki/index.md --file change.diff
-```
-
-Example `change.diff`:
-
-```diff
+agent-wiki myapp apply_patch << 'EOF'
+*** Begin Patch
+*** Update File: wiki/index.md
 @@
  ---
-+- [Auth Service](wiki/auth.md) - authentication and session management
++- [Auth Service](wiki/auth.md) — authentication and session management
+ ---
+*** End Patch
+EOF
 ```
 
 ---
 
-## Part 2 - Design Guidelines
+## Part 2 — Design Guidelines
 
 ### When to create a schema (domain)
 
-**A schema must represent something large and long-lived**: a project, a system, a product, or a broad knowledge domain. It is a knowledge base that will accumulate pages over time and needs structural conventions to stay navigable.
+**A schema must represent something large and long-lived** — a project, a system, a product, or a broad knowledge domain. It is a knowledge base that will accumulate pages over time and needs structural conventions to stay navigable.
 
 **Create a schema when:**
 - A user explicitly asks for it
@@ -122,7 +185,7 @@ If unsure, ask the user whether they want a persistent domain or just a one-time
 
 ### How to write a good domain description
 
-The domain description appears every time `schema` is called. It must orient the agent immediately before reading any wiki page.
+The domain description appears every time `schema` is called. It must orient the agent immediately — before reading any wiki page.
 
 **Requirements:**
 - One to three sentences maximum
@@ -130,7 +193,6 @@ The domain description appears every time `schema` is called. It must orient the
 - Specific enough that it could not be confused with another domain
 
 **Good:**
-
 ```
 E-commerce XYZ project. Stores architecture decisions, API contracts, business
 rules, and technical decisions agreed upon by the team.
@@ -142,10 +204,9 @@ production, not academic theory.
 ```
 
 **Bad:**
-
 ```
-Notes about the project.         <- too vague, could be anything
-Everything about our backend.    <- "everything" is not a scope
+Notes about the project.         ← too vague, could be anything
+Everything about our backend.    ← "everything" is not a scope
 ```
 
 ---
@@ -180,14 +241,13 @@ The description is the first thing an agent reads when scanning pages. It must a
 **Requirements:**
 - Two to four sentences maximum
 - Must be specific enough that it cannot be confused with any other page in the same domain
-- Must not overlap in scope with an existing page; if it does, update that page instead of creating a new one
+- Must not overlap in scope with an existing page — if it does, update that page instead of creating a new one
 
 **Before writing a description, check existing pages.** Run `agent-wiki <domain> list`, skim descriptions of related pages via `view`, and confirm the new page covers something genuinely distinct.
 
 **Good:**
-
 ```markdown
-# Auth Service - API Contracts
+# Auth Service — API Contracts
 
 > Defines the request/response schema, error codes, and versioning policy for
 > all endpoints in the auth service. Read this when implementing or debugging
@@ -195,7 +255,6 @@ The description is the first thing an agent reads when scanning pages. It must a
 ```
 
 **Bad:**
-
 ```markdown
 # Auth
 

@@ -50,16 +50,10 @@ function run(argv) {
       require('./commands/write').run(domain, argv[2], argv.slice(3).join(' '));
       break;
 
-    case 'replace': {
-      require('./commands/replace').run(domain, positional[2], positional[3], positional[4]);
-      break;
-    }
-
-    case 'patch': {
-      require('./commands/patch').run(
+    case 'apply_patch': {
+      require('./commands/apply_patch').run(
         domain,
-        argv[2],
-        argv.length > 3 ? argv.slice(3).join(' ') : undefined,
+        argv.length > 2 ? argv.slice(2).join(' ') : undefined,
         args
       );
       break;
@@ -89,7 +83,7 @@ function printHelp() {
   print('  agent-wiki <domain> schema edit "<content>"');
   print('  agent-wiki <domain> view <path>');
   print('  agent-wiki <domain> write <path> "<content>"');
-  print('  agent-wiki <domain> patch <path> --file <patch-file>');
+  print('  agent-wiki <domain> apply_patch [--file <patch-file>]');
   print('  agent-wiki <domain> list [path]');
   print('  agent-wiki <domain> delete --confirm');
   print('  agent-wiki domains');

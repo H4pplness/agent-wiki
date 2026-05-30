@@ -1,6 +1,6 @@
 {
   "name": "@h4pplness/agent-wiki",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "CLI knowledge base platform for AI agents, organized by domain",
   "main": "src/index.js",
   "bin": {

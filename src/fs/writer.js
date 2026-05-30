@@ -9,14 +9,6 @@ function writeFile(filePath, content) {
   fs.writeFileSync(filePath, content, 'utf8');
 }
 
-function replaceInFile(filePath, oldStr, newStr) {
-  const content = fs.readFileSync(filePath, 'utf8');
-  if (!content.includes(oldStr)) return false;
-  const updated = content.replace(oldStr, newStr);
-  fs.writeFileSync(filePath, updated, 'utf8');
-  return true;
-}
-
 function patchFile(filePath, patch) {
   const content = fs.readFileSync(filePath, 'utf8');
   const updated = applyPatch(content, patch);
@@ -113,4 +105,4 @@ function removeDir(dirPath) {
   fs.rmSync(dirPath, { recursive: true, force: true });
 }
 
-module.exports = { writeFile, replaceInFile, patchFile, removeDir };
+module.exports = { writeFile, patchFile, removeDir };
